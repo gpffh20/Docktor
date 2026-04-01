@@ -1,0 +1,24 @@
+name: "🔨 Refactoring"
+description: "Refactoring 작업 사항을 입력해주세요."
+title: "(대문자로 시작하기)"
+labels: ["refactor"]
+body:
+  - type: textarea
+    id: Description
+    attributes:
+      label: ✍🏻 Description
+      description: 어떤 기능을 수정하는지 알려주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: Why
+    attributes:
+      label: ？ Cause
+      description: 수정하는 이유를 알려주세요.
+      placeholder: e.g.) 불필요하게 반복문을 많이 돌아 러닝타임이 길어지는 문제 해결 필요
+  - type: textarea
+    id: Todo
+    attributes:
+      label: ✅ Todo
+      description: Todo list를 추가해주세요.
+      value: "- [ ] todo1"

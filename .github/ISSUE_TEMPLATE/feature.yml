@@ -1,0 +1,20 @@
+name: "✨ Feature request(Default)"
+description: 새로운 기능 추가 시 작성해주세요. 기본 템플릿입니다
+title: "(대문자로 시작하기)"
+labels: ["feat"]
+body:
+  - type: textarea
+    id: Description
+    attributes:
+      label: ✍🏻 Description
+      description: 어떤 작업이 필요한지, 추가한 기능에 대한 설명 등을 적어주세요
+    validations:
+      required: true
+  - type: textarea
+    id: Todo
+    attributes:
+      label: ✅ Todo
+      description: 어떤 작업들을 진행할 지 todo list를 적어주세요
+      value: "- [ ] todo1"
+    validations:
+      required: true
