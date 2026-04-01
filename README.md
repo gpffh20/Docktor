@@ -199,4 +199,3 @@ hotfix/#7/criticalBug
 - 변수명, 함수명은 소문자와 snake_case를 사용합니다.
 - 클래스명은 PascalCase를 사용합니다.
 - 들여쓰기는 공백 4칸을 사용합니다.
-- 
