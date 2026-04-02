@@ -1,4 +1,8 @@
-from .base import BaseRule, Instruction, Warning
+try:
+    from .base import BaseRule, Instruction, Warning
+except ImportError:
+    from base import BaseRule, Instruction, Warning
+# 직접 실행 시와 모듈로 import 시 모두 동작하도록 처리
 
 FLOATING_TAGS = {"latest", "lts", "current", "stable", "edge", "nightly"}
 
@@ -66,3 +70,40 @@ class LatestTagRule(BaseRule):
 
     def result(self) -> list[Warning]:
         return self.warnings
+
+
+# 테스트용 메인 함수
+def main():
+    dockerfile = """
+FROM node:latest
+RUN npm install
+COPY . .
+FROM python:3.12-slim
+CMD ["python", "app.py"]
+"""
+
+    rule = LatestTagRule()
+
+    for i, line in enumerate(dockerfile.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        parts = stripped.split(maxsplit=1)
+        if len(parts) < 2:
+            continue
+        name = parts[0].upper()
+        value = parts[1]
+        instruction = Instruction(line=i, name=name, value=value)
+        rule.feed(instruction)
+
+    warnings = rule.result()
+
+    print(f"감지된 경고 수: {len(warnings)}\n")
+    for w in warnings:
+        print(f"[{w.severity.upper()}] Line {w.line}: {w.message}")
+        print(f"  왜?: {w.why}")
+        print(f"  감점: -{w.deduction}점\n")
+
+
+if __name__ == "__main__":
+    main()
