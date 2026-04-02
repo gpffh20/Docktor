@@ -35,10 +35,4 @@ def build_and_analyze(dockerfile_content: str) -> BuildResult:
             return BuildResult(success=False, error_message=error_message)
 
 
-# 테스트용
-if __name__ == "__main__":
-    with open("test/Dockerfile", "r") as f:
-        content = f.read()
 
-    result = build_and_analyze(content)
-    print(result)
