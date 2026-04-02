@@ -13,7 +13,7 @@ class BuildResult:
     error_message: str | None
 
 
-def build_and_analyze(dockerfile_content: str) -> BuildResult:
+def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildResult:
     with tempfile.TemporaryDirectory() as tmpdir:
         dockerfile_path = os.path.join(tmpdir, "Dockerfile")
         with open(dockerfile_path, "w") as f:
@@ -21,8 +21,11 @@ def build_and_analyze(dockerfile_content: str) -> BuildResult:
 
         start = time.time()  # 시작 직전 시간 기록
 
+        command = ["docker", "build", tmpdir]
+        if tag:
+            command = ["docker", "build", "-t", tag, tmpdir]
         result = subprocess.run(
-            ["docker", "build", tmpdir],
+            command,
             capture_output=True,
             text=True
         )
