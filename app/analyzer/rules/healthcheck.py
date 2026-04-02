@@ -29,10 +29,10 @@ class HealthcheckRule(BaseRule):
 
         if not self.has_healthcheck:
             if self.disabled_by_none:
-                message = "최종 스테이지에서 HEALTHCHECK가 비활성화되었습니다"
+                message = "HEALTHCHECK가 비활성화(NONE) 되었습니다"
                 line = self.last_healthcheck_line or self.last_from_line
             else:
-                message = "최종 스테이지에 HEALTHCHECK 명령어가 없습니다"
+                message = "HEALTHCHECK 명령어가 누락되었습니다"
                 line = self.last_from_line
 
             return [
