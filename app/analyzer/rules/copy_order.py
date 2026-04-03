@@ -57,19 +57,13 @@ class CopyOrderRule(BaseRule):
                     line=self.copy_all_line,
                     message="전체 소스 복사가 의존성 파일 복사보다 먼저 수행됩니다",
                     why=(
-                        "소스 코드 전체를 먼저 복사하면 코드가 변경될 때마다 "
-                        "의존성 설치 레이어 캐시가 무효화됩니다. "
-                        "빌드 시간이 불필요하게 길어집니다."
+                        "소스 코드가 변경될 때마다 의존성 설치 캐시가 무효화되어 "
+                        "매 빌드마다 패키지를 다시 설치하여 빌드 시간이 늘어나게 됩니다."
                     ),
                     fix=(
                         "의존성 파일을 먼저 복사하고 설치한 뒤 소스 코드를 복사하세요.\n\n"
-                        "# Node.js 예시\n"
-                        "COPY package.json package-lock.json ./\n"
-                        "RUN npm install\n"
-                        "COPY . .\n\n"
-                        "# Python 예시\n"
-                        "COPY requirements.txt ./\n"
-                        "RUN pip install -r requirements.txt\n"
+                        "COPY <의존성 파일> ./\n"
+                        "RUN <의존성 설치 명령어>\n"
                         "COPY . ."
                     ),
                     deduction=10,
