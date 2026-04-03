@@ -12,7 +12,7 @@ class BuildResult:
     image_size_mb: float | None
     image_id: str | None
     tag: str | None
-    base_image: str | None
+    base_images: list[str] | None
     error_message: str | None
 
 
@@ -25,11 +25,13 @@ def validate_tag(tag: str) -> bool:
 
 def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildResult:
     #FROM 라인에서 base image 추출
-    base_image = None
+    base_images = []
+    stage = 1
     for line in dockerfile_content.splitlines():
         if line.strip().startswith("FROM"):  #FROM으로 시작하는 줄 찾기
-            base_image = line.split()[1]   #FROM 이미지 이름 추출
-            break
+            image = line.split()[1]
+            base_images.append(f"stage{stage}: {image}")  # 스테이지 번호와 함께 추가
+            stage += 1
     if tag and not validate_tag(tag):  # 태그가 있으면 유효성 검사
         return BuildResult(
             success=False,
@@ -37,7 +39,7 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
             image_size_mb=None,
             image_id=None,
             tag=tag,
-            base_image=base_image,
+            base_images=base_images,
             error_message="유효하지 않은 태그입니다. 영문, 숫자, -, ., _ 만 사용 가능하고 128자 이하여야 합니다."
         )
 
@@ -81,7 +83,7 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
                 image_size_mb=image_size_mb,
                 image_id=image_id,
                 tag=tag,
-                base_image=base_image,
+                base_images=base_images,
                 error_message=None
             )
         else:
@@ -91,6 +93,6 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
                 image_size_mb=None,
                 image_id=None,
                 tag=tag,
-                base_image=base_image,
+                base_images=base_images,
                 error_message=result.stderr
             )
