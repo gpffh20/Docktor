@@ -6,6 +6,7 @@ import typer
 
 from app.analyzer.static_analyzer import analyze
 from app.analyzer.build_analyzer import build_and_analyze
+from app.scorer.calculator import calculate
 
 app = typer.Typer(help="Docktor — Docker Image Quality Gate", add_completion=False)
 
@@ -17,17 +18,14 @@ def _load(path: Path) -> str:
     return path.read_text()
 
 
-def _print_static(result) -> None:
+def _print_static(result, score_result) -> None:
     typer.echo(f"베이스 이미지: {result.base_image}\n")
-    total_deduction = 0
     for w in result.warnings:
         typer.echo(f"[{w.severity.upper()}] Line {w.line}: {w.message}")
         typer.echo(f"  규칙: {w.rule}")
         typer.echo(f"  왜?: {w.why}")
         typer.echo(f"  감점: -{w.deduction}점\n")
-        total_deduction += w.deduction
-    score = max(0, 100 - total_deduction)
-    typer.echo(f"최종 점수: {score}점 (총 감점: -{total_deduction}점)")
+    typer.echo(f"최종 점수: {score_result.score}점 | 등급: {score_result.grade}")
 
 
 def _print_build(build_result) -> None:
@@ -44,19 +42,18 @@ def analyze_cmd(
     """Dockerfile을 정적 분석하고 선택적으로 빌드합니다."""
     content = _load(file)
     static = analyze(content)
-    _print_static(static)
 
     build_result = None
     if build:
         build_result = build_and_analyze(content, tag=tag)
+
+    score_result = calculate(static.warnings, build_result)
+    _print_static(static, score_result)
+
+    if build_result is not None:
         _print_build(build_result)
 
-    if build_result is not None and not build_result.success:
-        sys.exit(2)
-    elif static.warnings:
-        sys.exit(1)
-    else:
-        sys.exit(0)
+    sys.exit({"Good": 0, "Warning": 1, "Risky": 2}[score_result.grade])
 
 
 @app.command()
