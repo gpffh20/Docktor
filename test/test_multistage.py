@@ -1,9 +1,5 @@
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app", "analyzer", "rules"))
-
-from base import BaseRule, Instruction, Warning
-from multistage import MultistageRule
+from app.analyzer.rules.base import BaseRule, Instruction, Warning
+from app.analyzer.rules.multistage import MultistageRule
 
 
 # 테스트용 메인 함수

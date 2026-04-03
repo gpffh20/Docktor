@@ -1,7 +1,4 @@
-try:
-    from .base import BaseRule, Instruction, Warning
-except ImportError:
-    from base import BaseRule, Instruction, Warning
+from .base import BaseRule, Instruction, Warning
 
 
 class MultistageRule(BaseRule):

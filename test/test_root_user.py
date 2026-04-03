@@ -1,9 +1,5 @@
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app", "analyzer", "rules"))
-
-from base import BaseRule, Instruction, Warning
-from root_user import RootUserRule
+from app.analyzer.rules.base import BaseRule, Instruction, Warning
+from app.analyzer.rules.root_user import RootUserRule
 
 
 def main():
