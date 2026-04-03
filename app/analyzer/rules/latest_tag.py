@@ -1,8 +1,4 @@
-try:
-    from .base import BaseRule, Instruction, Warning
-except ImportError:
-    from base import BaseRule, Instruction, Warning
-# 직접 실행 시와 모듈로 import 시 모두 동작하도록 처리
+from .base import BaseRule, Instruction, Warning
 
 FLOATING_TAGS = {"latest", "lts", "current", "stable", "edge", "nightly"}
 
