@@ -5,8 +5,8 @@
 
 
 
-FROM python:3.11
-RUN pip install pandas numpy matplotlib scikit-learn
+#FROM python:3.11
+#RUN pip install pandas numpy matplotlib scikit-learn
 
 
 
@@ -31,3 +31,12 @@ RUN pip install pandas numpy matplotlib scikit-learn
 #RUN apt-get update && apt-get install -y curl
 #
 #CMD ["node", "dist/app.js"]
+
+FROM node:latest AS builder
+RUN echo "building..."
+
+FROM python:3.11-slim AS tester
+RUN echo "testing..."
+
+FROM node:20-slim
+CMD ["node", "--version"]
