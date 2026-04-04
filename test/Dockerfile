@@ -32,11 +32,16 @@
 #
 #CMD ["node", "dist/app.js"]
 
-FROM node:latest AS builder
-RUN echo "building..."
 
-FROM python:3.11-slim AS tester
-RUN echo "testing..."
+#FROM node:latest AS builder
+#RUN echo "building..."
 
-FROM node:20-slim
-CMD ["node", "--version"]
+#FROM python:3.11-slim AS tester
+#RUN echo "testing..."
+
+#FROM node:20-slim
+#CMD ["node", "--version"]
+
+FROM python:3.11-slim
+RUN pip install 존재하지않는패키지
+CMD ["python", "--version"]
