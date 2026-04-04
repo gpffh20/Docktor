@@ -43,7 +43,7 @@ def _parse_cache_summary(raw_stderr: str) -> str | None:
 
     # [1/3] 같은 실제 레이어만 필터링하고 FROM은 제외
     real_layers = [(name, duration, cached) for name, duration, cached in layers
-                   if name.startswith("[") and "/" in name.split("]")[0]
+                   if re.match(r'^\[\d+/\d+\]', name)
                    and "FROM" not in name]
     # 캐시 안 된 첫 번째 레이어 찾기
     cache_break = None
