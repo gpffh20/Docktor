@@ -110,7 +110,17 @@ def print_report(
         if build_result.success:
             time_str = f"{build_result.build_time_seconds}s" if build_result.build_time_seconds is not None else "-"
             size_str = f"{build_result.image_size_mb}MB" if build_result.image_size_mb is not None else "-"
-            build_text = f"[bold]빌드:[/bold] [green]성공[/green]  |  [bold]소요시간:[/bold] {time_str}  |  [bold]이미지 크기:[/bold] {size_str}"
+            image_id_str = (
+                build_result.image_id.removeprefix("sha256:")
+                if build_result.image_id
+                else "-"
+            )
+            build_text = (
+                f"[bold]빌드:[/bold] [green]성공[/green]  |  "
+                f"[bold]소요시간:[/bold] {time_str}  |  "
+                f"[bold]이미지 크기:[/bold] {size_str}\n"
+                f"[bold]Image ID:[/bold] {image_id_str}"
+            )
         else:
             build_text = f"[bold]빌드:[/bold] [red]실패[/red]\n{build_result.error_message or ''}"
         console.print(Panel(build_text, title="[bold cyan]🔨 빌드 결과[/bold cyan]", expand=True))
