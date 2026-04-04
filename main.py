@@ -10,8 +10,7 @@ from app.scorer.calculator import calculate
 from app.reporter import console as console_reporter
 from app.reporter import json_report
 
-app = typer.Typer(help="Docktor — Docker Image Quality Gate", add_completion=False)
-
+app = typer.Typer(help="Docktor — Your Dockerfile Doctor", add_completion=False)
 
 def _load(path: Path) -> str:
     if not path.exists():
@@ -20,18 +19,6 @@ def _load(path: Path) -> str:
     return path.read_text()
 
 
-def _print_static(result, score_result) -> None:
-    typer.echo(f"베이스 이미지: {result.base_image}\n")
-    for w in result.warnings:
-        typer.echo(f"[{w.severity.upper()}] Line {w.line}: {w.message}")
-        typer.echo(f"  규칙: {w.rule}")
-        typer.echo(f"  왜?: {w.why}")
-        typer.echo(f"  감점: -{w.deduction}점\n")
-    typer.echo(f"최종 점수: {score_result.score}점 | 등급: {score_result.grade}")
-
-
-def _print_build(build_result) -> None:
-    typer.echo(build_result)
 
 
 @app.command(name="analyze")
@@ -50,10 +37,11 @@ def analyze_cmd(
         build_result = build_and_analyze(content, tag=tag)
 
     score_result = calculate(static.warnings, build_result)
-    _print_static(static, score_result)
 
-    if build_result is not None:
-        _print_build(build_result)
+    if format == "json":
+        typer.echo(json_report.to_json(static, score_result, build_result))
+    else:
+        console_reporter.print_report(static, score_result, build_result, str(file))
 
     sys.exit({"Good": 0, "Warning": 1, "Risky": 2}[score_result.grade])
 

@@ -87,6 +87,9 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
                 error_message=None
             )
         else:
+            #ERROR 포함된 줄만 뽑기
+            error_lines = [line for line  in result.stderr.splitlines() if "ERROR" in line]
+            error_message = "\n".join(error_lines) if error_lines else result.stderr #에러 줄 없으면 전체 출력
             return BuildResult(
                 success=False,
                 build_time_seconds=build_time,
@@ -94,5 +97,5 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
                 image_id=None,
                 tag=tag,
                 base_images=base_images,
-                error_message=result.stderr
+                error_message=error_message
             )
