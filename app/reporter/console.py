@@ -14,6 +14,17 @@ _SEVERITY_COLOR = {"high": "red", "medium": "yellow"}
 _GRADE_COLOR = {"Good": "green", "Warning": "yellow", "Risky": "red"}
 
 
+def _format_base_images(base_images: list[str], fallback: str) -> str:
+    if not base_images:
+        return fallback
+    if len(base_images) == 1:
+        return base_images[0]
+    return " / ".join(
+        f"stage{index}: {image}"
+        for index, image in enumerate(base_images, start=1)
+    )
+
+
 def print_compare(
     static_b: StaticAnalysisResult,
     score_b: ScoreResult,
@@ -54,7 +65,8 @@ def print_report(
     file_path: str,
 ) -> None:
     # ── 헤더 ────────────────────────────────────────────────────
-    header = f"[bold]파일:[/bold] {file_path}\n[bold]베이스 이미지:[/bold] {static.base_image}"
+    base_images = _format_base_images(static.base_images, static.base_image)
+    header = f"[bold]파일:[/bold] {file_path}\n[bold]베이스 이미지:[/bold] {base_images}"
     console.print(Panel(header, title="[bold cyan]Docktor Analysis[/bold cyan]", expand=False))
 
     # ── 경고 없음 ────────────────────────────────────────────────

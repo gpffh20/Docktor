@@ -19,6 +19,7 @@ def compare_to_json(
             "score": score_b.score,
             "grade": score_b.grade,
             "base_image": static_b.base_image,
+            "base_images": static_b.base_images,
             "warnings": [asdict(w) for w in static_b.warnings],
             "build": asdict(build_result_b) if build_result_b is not None else None,
         },
@@ -26,6 +27,7 @@ def compare_to_json(
             "score": score_a.score,
             "grade": score_a.grade,
             "base_image": static_a.base_image,
+            "base_images": static_a.base_images,
             "warnings": [asdict(w) for w in static_a.warnings],
             "build": asdict(build_result_a) if build_result_a is not None else None,
         },
@@ -43,6 +45,7 @@ def to_json(
         "score": score_result.score,
         "grade": score_result.grade,
         "base_image": static.base_image,
+        "base_images": static.base_images,
         "warnings": [asdict(w) for w in static.warnings],
         "build": asdict(build_result) if build_result is not None else None,
     }

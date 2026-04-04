@@ -85,6 +85,7 @@ def analyze(dockerfile_content: str) -> StaticAnalysisResult:
     ]
 
     base_image: str = "unknown"
+    base_images: list[str] = []
     is_first_from = False
 
     for inst in instructions:
@@ -99,6 +100,16 @@ def analyze(dockerfile_content: str) -> StaticAnalysisResult:
                 else:
                     base_image = candidate.split("@", 1)[0]
             is_first_from = True
+        if inst.name == "FROM":
+            parts = inst.value.split()
+            candidate = next(
+                (p for p in parts if not p.startswith("--")), None
+            )
+            if candidate:
+                if candidate.startswith("$"):
+                    base_images.append("unknown")
+                else:
+                    base_images.append(candidate.split("@", 1)[0])
         for rule in rules:
             rule.feed(inst)
 
@@ -110,4 +121,11 @@ def analyze(dockerfile_content: str) -> StaticAnalysisResult:
         key=lambda w: (-w.deduction, w.line if w.line is not None else 9999)
     )
 
-    return StaticAnalysisResult(warnings=warnings, base_image=base_image)
+    if not base_images:
+        base_images = [base_image]
+
+    return StaticAnalysisResult(
+        warnings=warnings,
+        base_image=base_image,
+        base_images=base_images,
+    )
