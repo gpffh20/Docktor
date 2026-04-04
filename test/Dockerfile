@@ -42,6 +42,11 @@ RUN pip install pandas numpy matplotlib scikit-learn
 #FROM node:20-slim
 #CMD ["node", "--version"]
 
+#FROM python:3.11-slim
+#RUN pip install 존재하지않는패키지
+#CMD ["python", "--version"]
+
 FROM python:3.11-slim
-RUN pip install 존재하지않는패키지
+COPY . .
+RUN pip install -r requirements.txt
 CMD ["python", "--version"]

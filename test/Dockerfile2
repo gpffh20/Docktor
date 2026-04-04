@@ -3,12 +3,11 @@
 #FROM python:3.11-slim
 #CMD ["python", "--version"]
 
-
-
 FROM python:3.11-slim
-RUN pip install pandas numpy matplotlib scikit-learn
-
-
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "--version"]
 
 
 # 테스트 Dockerfile
