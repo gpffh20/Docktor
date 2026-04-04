@@ -23,7 +23,8 @@ class Warning:
 @dataclass
 class StaticAnalysisResult:
     warnings: list[Warning]
-    base_image: str     # FROM 라인에서 추출
+    base_image: str     # 첫 번째 FROM 라인에서 추출
+    base_images: list[str]  # 모든 FROM 라인에서 추출
 
 
 class BaseRule(ABC):

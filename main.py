@@ -60,18 +60,22 @@ def compare(
     static_b = analyze(content_b)
     static_a = analyze(content_a)
 
-    typer.echo("── BEFORE ──────────────────────────────")
-    _print_static(static_b)
+    build_result_b = None
+    build_result_a = None
     if build:
-        _print_build(build_and_analyze(content_b))
+        build_result_b = build_and_analyze(content_b)
+        build_result_a = build_and_analyze(content_a)
 
-    typer.echo("── AFTER ───────────────────────────────")
-    _print_static(static_a)
-    if build:
-        build_a = build_and_analyze(content_a)
-        _print_build(build_a)
-        if not build_a.success:
-            sys.exit(2)
+    score_b = calculate(static_b.warnings, build_result_b)
+    score_a = calculate(static_a.warnings, build_result_a)
+
+    if format == "json":
+        typer.echo(json_report.compare_to_json(static_b, score_b, build_result_b, static_a, score_a, build_result_a))
+    else:
+        console_reporter.print_compare(static_b, score_b, build_result_b, static_a, score_a, build_result_a, str(before), str(after))
+
+    if build_result_a is not None and not build_result_a.success:
+        sys.exit(2)
 
 
 if __name__ == "__main__":
