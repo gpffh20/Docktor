@@ -3,11 +3,7 @@
 #FROM python:3.11-slim
 #CMD ["python", "--version"]
 
-FROM python:3.11-slim
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "--version"]
+
 
 
 # 테스트 Dockerfile
@@ -30,3 +26,10 @@ CMD ["python", "--version"]
 #RUN apt-get update && apt-get install -y curl
 #
 #CMD ["node", "dist/app.js"]
+
+#캐시 효율화 테스트용
+FROM python:3.11-slim
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "--version"]

@@ -129,6 +129,8 @@ def print_report(
                 build_text += f"\n[bold]태그:[/bold] {build_result.tag}"
             if build_result.cache_summary:
                 build_text += f"\n[bold]캐시 분석:[/bold] {build_result.cache_summary}"
+            if build_result.security_issues:
+                build_text += f"\n[bold]보안 이슈:[/bold] {', '.join(build_result.security_issues)}"
         else:
             build_text = f"[bold]빌드:[/bold] [red]실패[/red]\n{build_result.error_message or ''}"
         console.print(Panel(build_text, title="[bold cyan]🔨 빌드 결과[/bold cyan]", expand=True))
