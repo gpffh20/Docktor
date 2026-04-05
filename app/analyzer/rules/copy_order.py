@@ -45,10 +45,8 @@ class CopyOrderRule(BaseRule):
     def _flush_stage(self) -> None:
         if (
             self.copy_all_line is not None
-            and (
-                self.dep_copy_line is None
-                or self.copy_all_line < self.dep_copy_line
-            )
+            and self.dep_copy_line is not None
+            and self.copy_all_line < self.dep_copy_line
         ):
             self.warnings.append(
                 Warning(
@@ -57,8 +55,8 @@ class CopyOrderRule(BaseRule):
                     line=self.copy_all_line,
                     message="전체 소스 복사가 의존성 파일 복사보다 먼저 수행됩니다",
                     why=(
-                        "소스 코드가 변경될 때마다 의존성 설치 캐시가 무효화되어 "
-                        "매 빌드마다 패키지를 다시 설치하여 빌드 시간이 늘어나게 됩니다."
+                        "의존성 파일을 기준으로 별도 설치 레이어를 두는 Dockerfile에서는, "
+                        "전체 소스를 먼저 복사할 경우 캐시 효율이 떨어질 수 있습니다."
                     ),
                     fix=(
                         "의존성 파일을 먼저 복사하고 설치한 뒤 소스 코드를 복사하세요.\n\n"
@@ -78,7 +76,7 @@ class CopyOrderRule(BaseRule):
             self.dep_copy_line = None
 
         elif instruction.name == "COPY":
-            if "--from=" in instruction.value:
+            if "--from=" in instruction.value.lower():
                 return
 
             clean = (
