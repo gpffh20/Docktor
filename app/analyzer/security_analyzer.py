@@ -1,7 +1,9 @@
 import json
+import platform
 import shutil
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 
 _SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
@@ -28,6 +30,35 @@ def _empty_counts() -> dict[str, int]:
     return {severity: 0 for severity in _SEVERITIES}
 
 
+def _install_guide() -> str:
+    system = platform.system().lower()
+
+    if system == "windows":
+        return (
+            "Trivy가 설치되어 있지 않습니다.\n"
+            "Windows에서는 아래 방법 중 하나로 설치하세요.\n"
+            "- winget install AquaSecurity.Trivy\n"
+            "- choco install trivy\n"
+            "설치 후 `trivy --version`으로 확인하세요.\n"
+            "공식 문서: https://trivy.dev/docs/latest/getting-started/installation/"
+        )
+
+    if system == "darwin":
+        return (
+            "Trivy가 설치되어 있지 않습니다.\n"
+            "macOS에서는 `brew install trivy`로 설치할 수 있습니다.\n"
+            "설치 후 `trivy --version`으로 확인하세요.\n"
+            "공식 문서: https://trivy.dev/docs/latest/getting-started/installation/"
+        )
+
+    return (
+        "Trivy가 설치되어 있지 않습니다.\n"
+        "Linux에서는 배포판에 맞는 패키지 매니저 또는 바이너리 설치를 사용하세요.\n"
+        "설치 후 `trivy --version`으로 확인하세요.\n"
+        "공식 문서: https://trivy.dev/docs/latest/getting-started/installation/"
+    )
+
+
 def _merge_count(
     counts: dict[str, int],
     severity: str | None,
@@ -48,19 +79,28 @@ def _parse_results(results: list[dict]) -> tuple[int, dict[str, int]]:
             total += 1
             _merge_count(counts, vulnerability.get("Severity"))
 
-        misconfig_summary = result.get("MisconfSummary") or {}
-        misconfig_total = (
-            misconfig_summary.get("CriticalCount", 0)
-            + misconfig_summary.get("HighCount", 0)
-            + misconfig_summary.get("MediumCount", 0)
-            + misconfig_summary.get("LowCount", 0)
-        )
-        if misconfig_total:
-            total += misconfig_total
-            _merge_count(counts, "CRITICAL", misconfig_summary.get("CriticalCount", 0))
-            _merge_count(counts, "HIGH", misconfig_summary.get("HighCount", 0))
-            _merge_count(counts, "MEDIUM", misconfig_summary.get("MediumCount", 0))
-            _merge_count(counts, "LOW", misconfig_summary.get("LowCount", 0))
+        misconfigurations = result.get("Misconfigurations") or []
+        if misconfigurations:
+            for misconfiguration in misconfigurations:
+                status = (misconfiguration.get("Status") or "").upper()
+                if status and status not in {"FAIL", "FAILED"}:
+                    continue
+                total += 1
+                _merge_count(counts, misconfiguration.get("Severity"))
+        else:
+            misconfig_summary = result.get("MisconfSummary") or {}
+            misconfig_total = (
+                misconfig_summary.get("CriticalCount", 0)
+                + misconfig_summary.get("HighCount", 0)
+                + misconfig_summary.get("MediumCount", 0)
+                + misconfig_summary.get("LowCount", 0)
+            )
+            if misconfig_total:
+                total += misconfig_total
+                _merge_count(counts, "CRITICAL", misconfig_summary.get("CriticalCount", 0))
+                _merge_count(counts, "HIGH", misconfig_summary.get("HighCount", 0))
+                _merge_count(counts, "MEDIUM", misconfig_summary.get("MediumCount", 0))
+                _merge_count(counts, "LOW", misconfig_summary.get("LowCount", 0))
 
         for secret in result.get("Secrets") or []:
             total += 1
@@ -76,7 +116,7 @@ def _scan(command: list[str], mode: str, target: str) -> SecurityScanResult:
             mode=mode,
             target=target,
             summary=None,
-            error_message="Trivy가 설치되어 있지 않습니다. `trivy --version`으로 설치 여부를 확인하세요.",
+            error_message=_install_guide(),
         )
 
     result = subprocess.run(command, capture_output=True, text=True)
@@ -104,7 +144,7 @@ def _scan(command: list[str], mode: str, target: str) -> SecurityScanResult:
     total, counts = _parse_results(payload.get("Results") or [])
     summary = SecuritySummary(
         scanner=mode,
-        target=payload.get("ArtifactName") or target,
+        target=target,
         total_findings=total,
         severity_counts=counts,
     )
@@ -118,10 +158,32 @@ def _scan(command: list[str], mode: str, target: str) -> SecurityScanResult:
 
 
 def scan_config(file_path: str) -> SecurityScanResult:
-    command = ["trivy", "config", "--format", "json", "--quiet", file_path]
+    path = Path(file_path)
+    scan_target = str(path.parent if path.is_file() else path)
+    command = [
+        "trivy",
+        "config",
+        "--format",
+        "json",
+        "--quiet",
+        "--misconfig-scanners",
+        "dockerfile",
+        scan_target,
+    ]
     return _scan(command, mode="config", target=file_path)
 
 
 def scan_image(image_ref: str) -> SecurityScanResult:
-    command = ["trivy", "image", "--format", "json", "--quiet", image_ref]
+    command = [
+        "trivy",
+        "image",
+        "--format",
+        "json",
+        "--quiet",
+        "--scanners",
+        "vuln,secret",
+        "--image-config-scanners",
+        "misconfig,secret",
+        image_ref,
+    ]
     return _scan(command, mode="image", target=image_ref)
