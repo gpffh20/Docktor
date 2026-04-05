@@ -15,6 +15,17 @@ class SecuritySummary:
     target: str
     total_findings: int
     severity_counts: dict[str, int]
+    findings: list["SecurityFinding"]
+
+
+@dataclass
+class SecurityFinding:
+    category: str
+    severity: str
+    title: str
+    identifier: str | None
+    target: str | None
+    detail: str | None
 
 
 @dataclass
@@ -70,14 +81,48 @@ def _merge_count(
     counts[key] += amount
 
 
-def _parse_results(results: list[dict]) -> tuple[int, dict[str, int]]:
+def _summarize_text(value: str | None, limit: int = 140) -> str | None:
+    if not value:
+        return None
+    clean = " ".join(str(value).split())
+    if len(clean) <= limit:
+        return clean
+    return clean[: limit - 3] + "..."
+
+
+def _parse_results(results: list[dict]) -> tuple[int, dict[str, int], list[SecurityFinding]]:
     total = 0
     counts = _empty_counts()
+    findings: list[SecurityFinding] = []
 
     for result in results:
         for vulnerability in result.get("Vulnerabilities") or []:
             total += 1
-            _merge_count(counts, vulnerability.get("Severity"))
+            severity = vulnerability.get("Severity")
+            _merge_count(counts, severity)
+            findings.append(
+                SecurityFinding(
+                    category="vulnerability",
+                    severity=(severity or "UNKNOWN").upper(),
+                    title=vulnerability.get("Title")
+                    or vulnerability.get("PkgName")
+                    or "취약점",
+                    identifier=vulnerability.get("VulnerabilityID"),
+                    target=vulnerability.get("PkgName"),
+                    detail=_summarize_text(
+                        " / ".join(
+                            part
+                            for part in [
+                                vulnerability.get("InstalledVersion"),
+                                f"fixed: {vulnerability.get('FixedVersion')}"
+                                if vulnerability.get("FixedVersion")
+                                else None,
+                            ]
+                            if part
+                        )
+                    ),
+                )
+            )
 
         misconfigurations = result.get("Misconfigurations") or []
         if misconfigurations:
@@ -86,7 +131,26 @@ def _parse_results(results: list[dict]) -> tuple[int, dict[str, int]]:
                 if status and status not in {"FAIL", "FAILED"}:
                     continue
                 total += 1
-                _merge_count(counts, misconfiguration.get("Severity"))
+                severity = misconfiguration.get("Severity")
+                _merge_count(counts, severity)
+                findings.append(
+                    SecurityFinding(
+                        category="misconfig",
+                        severity=(severity or "UNKNOWN").upper(),
+                        title=misconfiguration.get("Title")
+                        or misconfiguration.get("Message")
+                        or "Misconfiguration",
+                        identifier=misconfiguration.get("ID")
+                        or misconfiguration.get("AVDID"),
+                        target=misconfiguration.get("Type")
+                        or result.get("Target"),
+                        detail=_summarize_text(
+                            misconfiguration.get("Description")
+                            or misconfiguration.get("Resolution")
+                            or misconfiguration.get("Message")
+                        ),
+                    )
+                )
         else:
             misconfig_summary = result.get("MisconfSummary") or {}
             misconfig_total = (
@@ -104,12 +168,32 @@ def _parse_results(results: list[dict]) -> tuple[int, dict[str, int]]:
 
         for secret in result.get("Secrets") or []:
             total += 1
-            _merge_count(counts, secret.get("Severity"))
+            severity = secret.get("Severity")
+            _merge_count(counts, severity)
+            findings.append(
+                SecurityFinding(
+                    category="secret",
+                    severity=(severity or "UNKNOWN").upper(),
+                    title=secret.get("Title")
+                    or secret.get("RuleID")
+                    or "Secret",
+                    identifier=secret.get("RuleID"),
+                    target=secret.get("Target")
+                    or secret.get("File")
+                    or result.get("Target"),
+                    detail=_summarize_text(secret.get("Match") or secret.get("Category")),
+                )
+            )
 
-    return total, counts
+    return total, counts, findings
 
 
-def _scan(command: list[str], mode: str, target: str) -> SecurityScanResult:
+def _scan(
+    command: list[str],
+    mode: str,
+    target: str,
+    result_target_name: str | None = None,
+) -> SecurityScanResult:
     if shutil.which("trivy") is None:
         return SecurityScanResult(
             success=False,
@@ -141,12 +225,21 @@ def _scan(command: list[str], mode: str, target: str) -> SecurityScanResult:
             error_message="Trivy JSON 결과를 파싱하지 못했습니다.",
         )
 
-    total, counts = _parse_results(payload.get("Results") or [])
+    results = payload.get("Results") or []
+    if result_target_name is not None:
+        results = [
+            result
+            for result in results
+            if Path(result.get("Target") or "").name == result_target_name
+        ]
+
+    total, counts, findings = _parse_results(results)
     summary = SecuritySummary(
         scanner=mode,
         target=target,
         total_findings=total,
         severity_counts=counts,
+        findings=findings,
     )
     return SecurityScanResult(
         success=True,
@@ -170,7 +263,12 @@ def scan_config(file_path: str) -> SecurityScanResult:
         "dockerfile",
         scan_target,
     ]
-    return _scan(command, mode="config", target=file_path)
+    return _scan(
+        command,
+        mode="config",
+        target=file_path,
+        result_target_name=path.name if path.is_file() else None,
+    )
 
 
 def scan_image(image_ref: str) -> SecurityScanResult:

@@ -13,6 +13,13 @@ console = Console()
 
 _SEVERITY_COLOR = {"high": "red", "medium": "yellow"}
 _GRADE_COLOR = {"Good": "green", "Warning": "yellow", "Risky": "red"}
+_SECURITY_SEVERITY_COLOR = {
+    "CRITICAL": "red",
+    "HIGH": "red",
+    "MEDIUM": "yellow",
+    "LOW": "cyan",
+    "UNKNOWN": "white",
+}
 
 
 def _format_base_images(base_images: list[str], fallback: str) -> str:
@@ -24,6 +31,30 @@ def _format_base_images(base_images: list[str], fallback: str) -> str:
         f"stage{index}: {image}"
         for index, image in enumerate(base_images, start=1)
     )
+
+
+def _format_security_findings(security_result: SecurityScanResult) -> str:
+    summary = security_result.summary
+    if summary is None or not summary.findings:
+        return ""
+
+    lines = []
+    for finding in summary.findings[:10]:
+        color = _SECURITY_SEVERITY_COLOR.get(finding.severity, "white")
+        identifier = f" ({finding.identifier})" if finding.identifier else ""
+        target = f" [{finding.target}]" if finding.target else ""
+        lines.append(
+            f"[{color}][bold]{finding.severity}[/bold][/{color}] "
+            f"{finding.category}{identifier}: {finding.title}{target}"
+        )
+        if finding.detail:
+            lines.append(f"  {finding.detail}")
+
+    remaining = len(summary.findings) - 10
+    if remaining > 0:
+        lines.append(f"... 외 {remaining}건")
+
+    return "\n".join(lines)
 
 
 def print_compare(
@@ -153,6 +184,14 @@ def print_report(
                 f"{security_result.error_message or ''}"
             )
         console.print(Panel(security_text, title="[bold cyan]🛡️ Trivy 결과[/bold cyan]", expand=True))
+        if security_result.success and security_result.summary is not None and security_result.summary.findings:
+            console.print(
+                Panel(
+                    _format_security_findings(security_result),
+                    title="[bold cyan]🔎 Trivy 상세 결과[/bold cyan]",
+                    expand=True,
+                )
+            )
 
     # ── 최종 점수 ────────────────────────────────────────────────
     grade_color = _GRADE_COLOR.get(score_result.grade, "white")
