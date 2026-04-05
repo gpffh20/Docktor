@@ -6,6 +6,7 @@ from rich.text import Text
 
 from app.analyzer.static_analyzer import StaticAnalysisResult
 from app.analyzer.build_analyzer import BuildResult
+from app.analyzer.security_analyzer import SecurityScanResult
 from app.scorer.calculator import ScoreResult
 
 console = Console()
@@ -29,17 +30,19 @@ def print_compare(
     static_b: StaticAnalysisResult,
     score_b: ScoreResult,
     build_result_b: BuildResult | None,
+    security_result_b: SecurityScanResult | None,
     static_a: StaticAnalysisResult,
     score_a: ScoreResult,
     build_result_a: BuildResult | None,
+    security_result_a: SecurityScanResult | None,
     before_path: str,
     after_path: str,
 ) -> None:
     console.rule("[bold yellow]◀  BEFORE[/bold yellow]")
-    print_report(static_b, score_b, build_result_b, before_path)
+    print_report(static_b, score_b, build_result_b, security_result_b, before_path)
 
     console.rule("[bold green]▶  AFTER[/bold green]")
-    print_report(static_a, score_a, build_result_a, after_path)
+    print_report(static_a, score_a, build_result_a, security_result_a, after_path)
 
     # ── 비교 요약 ────────────────────────────────────────────────
     diff = score_a.score - score_b.score
@@ -62,6 +65,7 @@ def print_report(
     static: StaticAnalysisResult,
     score_result: ScoreResult,
     build_result: BuildResult | None,
+    security_result: SecurityScanResult | None,
     file_path: str,
 ) -> None:
     # ── 헤더 ────────────────────────────────────────────────────
@@ -129,10 +133,34 @@ def print_report(
             build_text = f"[bold]빌드:[/bold] [red]실패[/red]\n{build_result.error_message or ''}"
         console.print(Panel(build_text, title="[bold cyan]🔨 빌드 결과[/bold cyan]", expand=True))
 
+    if security_result is not None:
+        if security_result.success and security_result.summary is not None:
+            counts = security_result.summary.severity_counts
+            security_text = (
+                f"[bold]스캔 모드:[/bold] {security_result.mode}\n"
+                f"[bold]대상:[/bold] {security_result.summary.target}\n"
+                f"[bold]총 발견 건수:[/bold] {security_result.summary.total_findings}\n"
+                f"[bold]CRITICAL:[/bold] {counts.get('CRITICAL', 0)}  |  "
+                f"[bold]HIGH:[/bold] {counts.get('HIGH', 0)}  |  "
+                f"[bold]MEDIUM:[/bold] {counts.get('MEDIUM', 0)}  |  "
+                f"[bold]LOW:[/bold] {counts.get('LOW', 0)}"
+            )
+        else:
+            security_text = (
+                f"[bold]보안 스캔:[/bold] [yellow]실패[/yellow]\n"
+                f"{security_result.error_message or ''}"
+            )
+        console.print(Panel(security_text, title="[bold cyan]🛡️ Trivy 결과[/bold cyan]", expand=True))
+
     # ── 최종 점수 ────────────────────────────────────────────────
     grade_color = _GRADE_COLOR.get(score_result.grade, "white")
     score_text = Text(justify="center")
     score_text.append(f"{score_result.score}점", style=f"bold {grade_color} on default")
     score_text.append("  |  ")
     score_text.append(score_result.grade, style=f"bold {grade_color}")
-    console.print(Panel(score_text, title="[bold]최종 점수[/bold]", expand=False))
+    score_panel_text = Text()
+    score_panel_text.append_text(score_text)
+    score_panel_text.append(
+        f"\n정적 -{score_result.static_deduction} / 빌드 -{score_result.build_deduction} / 보안 -{score_result.security_deduction}"
+    )
+    console.print(Panel(score_panel_text, title="[bold]최종 점수[/bold]", expand=False))
