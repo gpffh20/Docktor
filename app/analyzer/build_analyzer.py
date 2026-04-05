@@ -9,6 +9,8 @@ import tarfile
 from datetime import datetime
 from dataclasses import dataclass
 
+from app.analyzer.static_analyzer import parse_dockerfile
+
 @dataclass
 class BuildResult:
     success: bool
@@ -166,9 +168,12 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
     #FROM 라인에서 base image 추출
     base_images = []
     stage = 1
-    for line in dockerfile_content.splitlines():
-        if line.strip().startswith("FROM"):  #FROM으로 시작하는 줄 찾기
-            image = line.split()[1]
+    for instruction in parse_dockerfile(dockerfile_content):
+        if instruction.name == "FROM":
+            parts = instruction.value.split()
+            image = next((part for part in parts if not part.startswith("--")), None)
+            if image is None:
+                continue
             base_images.append(f"stage{stage}: {image}")  # 스테이지 번호와 함께 추가
             stage += 1
     if tag and not validate_tag(tag):  # 태그가 있으면 유효성 검사
