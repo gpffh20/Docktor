@@ -13,6 +13,7 @@ from app.reporter import json_report
 
 app = typer.Typer(help="Docktor — Your Dockerfile Doctor", add_completion=False)
 
+
 def _load(path: Path) -> str:
     if not path.exists():
         typer.echo(f"파일을 찾을 수 없습니다: {path}", err=True)
@@ -129,5 +130,9 @@ def compare(
         sys.exit(2)
 
 
-if __name__ == "__main__":
+def main() -> None:
     app()
+
+
+if __name__ == "__main__":
+    main()
