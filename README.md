@@ -1,7 +1,8 @@
 # Docktor
 
-Docktor는 Dockerfile 정적 분석과 실제 이미지 빌드 결과를 함께 확인해 컨테이너 이미지의 품질을 점검하는 프로젝트입니다.  
-배포 전에 Docker 이미지의 성능, 운영성, 보안 측면에서 확인이 필요한 요소를 진단하고, 더 나은 방향으로 개선할 수 있도록 돕는 것을 목표로 합니다.
+Docktor는 Dockerfile을 정적 분석하고, 필요하면 실제 이미지 빌드와 Trivy 보안 스캔까지 이어서 수행하는 CLI 도구입니다.
+배포 전에 Docker 이미지의 성능, 운영성, 보안 측면을 빠르게 점검하고 개선 포인트를 찾는 것이 목적입니다.
+
 
 ## 기술 스택
 
@@ -11,82 +12,164 @@ Docktor는 Dockerfile 정적 분석과 실제 이미지 빌드 결과를 함께 
 - Docker CLI
 - Trivy
 
-## 프로젝트 실행 방법
+## 설치
 
-### 1. 공통 권장 사항
+### 공통 권장 사항
 
-- macOS와 Windows 모두 Python 3.12 사용을 권장합니다.
+- Python 3.12 사용을 권장합니다.
 - 저장소 루트에서 가상환경을 만든 뒤 활성화합니다.
 - 의존성은 가상환경 안에만 설치합니다.
-- `--build` 또는 `--trivy` 옵션을 쓸 경우 각 OS에 Docker와 Trivy가 별도로 설치되어 있어야 합니다.
+- `--build` 사용 시 Docker가 설치되어 있어야 합니다.
+- `--trivy` 사용 시 Trivy가 설치되어 있어야 합니다.
 
-### 2. macOS
+### macOS
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -e .
-python -m main analyze --file test/Dockerfile
 ```
 
-설치 후에는 아래처럼 실행해도 됩니다.
-
-```bash
-docktor analyze --file test/Dockerfile
-```
-
-### 3. Windows
+### Windows
 
 ```powershell
 py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -e .
+```
+
+## 실행 방법
+
+### 기본 분석
+
+```bash
 python -m main analyze --file test/Dockerfile
 ```
 
-설치 후에는 아래 방식 중 하나로 실행합니다.
+또는 설치 후:
+
+```bash
+docktor analyze --file test/Dockerfile
+```
+
+Windows에서 `docktor` 명령이 바로 인식되지 않으면 아래 방식으로 실행하면 됩니다.
 
 ```powershell
 python -m main analyze --file test/Dockerfile
-docktor analyze --file test/Dockerfile
 docktor.bat analyze --file test/Dockerfile
 ```
 
-### 4. 왜 Windows에서 `docktor`가 바로 안 될 수 있는가
+### 빌드까지 포함한 분석
 
-저장소의 [`docktor`](./docktor)는 shebang 기반 실행 파일이라 macOS/Linux에서는 자연스럽지만 Windows에서는 그대로 실행 파일로 인식되지 않을 수 있습니다.  
-Windows에서는 아래 둘 중 하나로 실행하는 것을 권장합니다.
+```bash
+docktor analyze --file test/Dockerfile --build
+```
 
-- `pip install -e .` 후 생성되는 `docktor` 엔트리포인트 사용
-- `python -m main ...` 또는 `docktor.bat ...` 사용
+태그를 지정:
 
-### 5. 옵션별 요구 사항
+```bash
+docktor analyze --file test/Dockerfile --build --tag docktor:test
+```
 
-- `analyze --file ...`: Python 의존성만 맞으면 실행 가능
-- `--build`: Docker CLI 및 Docker Engine 필요
-- `--trivy`: Trivy 설치 필요
+### Trivy 스캔 포함 분석
 
-### 6. 팀 공통 실행 규칙
+빌드 없이 실행하면 Dockerfile 설정을 기준으로 검사합니다.
 
-- 둘 다 같은 Python 메이저/마이너 버전을 사용합니다.
-- 둘 다 가상환경을 활성화한 상태에서 실행합니다.
-- 둘 다 `pip install -e .` 또는 `pip install -r requirements.txt` 중 하나로 의존성을 맞춥니다.
-- 가능하면 명령은 `python -m main ...` 형태로 통일합니다.
-- Git 줄바꿈 차이를 줄이기 위해 저장소의 `.gitattributes` 설정을 유지합니다.
+```bash
+docktor analyze --file test/Dockerfile --trivy
+```
+
+빌드와 함께 실행하면 생성된 이미지 기준으로 스캔합니다.
+
+```bash
+docktor analyze --file test/Dockerfile --build --trivy --tag docktor:test
+```
+
+### JSON 출력
+
+```bash
+docktor analyze --file test/Dockerfile --format json
+```
+
+### Before / After 비교
+
+```bash
+docktor compare --before test/Dockerfile.before --after test/Dockerfile.after
+```
+
+빌드와 보안 스캔까지 포함하려면:
+
+```bash
+docktor compare --before test/Dockerfile.before --after test/Dockerfile.after --build --trivy
+```
+
+## 점수 기준
+
+Docktor는 100점 만점 기준으로 감점 방식 점수를 계산합니다.
+
+- 정적 분석 경고 감점
+- 이미지 크기에 따른 감점
+- Trivy 보안 결과에 따른 감점
+
+최종 등급은 아래처럼 구분합니다.
+
+- `Good`: 80점 이상
+- `Warning`: 50점 이상 79점 이하
+- `Risky`: 49점 이하 또는 빌드 실패
+
+CLI 종료 코드는 다음과 같습니다.
+
+- `0`: `Good`
+- `1`: `Warning`
+- `2`: `Risky` 또는 비교 대상의 빌드 실패
 
 ## 프로젝트 구조
 
+```text
+Docktor/
+├── app/
+│   ├── analyzer/
+│   │   ├── rules/
+│   │   ├── build_analyzer.py
+│   │   ├── security_analyzer.py
+│   │   └── static_analyzer.py
+│   ├── reporter/
+│   │   ├── console.py
+│   │   └── json_report.py
+│   └── scorer/
+│       └── calculator.py
+├── main.py
+├── setup.py
+├── requirements.txt
+├── docktor
+├── docktor.bat
+└── test/
+    ├── Dockerfile
+    ├── Dockerfile.before
+    ├── Dockerfile.after
+    └── node-app/
+```
 
-## 프로젝트 작업 순서
+## 팀 작업 흐름
 
-본 프로젝트는 `main` 브랜치와 `develop` 브랜치를 분리하여 운영합니다.
+브랜치는 `main`과 `develop`을 분리해 운영합니다.
 
 - `main`: 최종 배포 및 제출 기준 브랜치
-- `develop`: 기능 개발 내용을 통합하는 브랜치
+- `develop`: 기능 개발 통합 브랜치
 
-작업은 아래 순서대로 진행합니다.
+작업 흐름은 아래 순서를 따릅니다.
+```text
+1. GitHub Issue 생성
+2. `develop` 기준 작업 브랜치 생성
+3. 기능 개발 및 커밋
+4. `develop` 대상 PR 생성
+5. 최소 1명 이상 코드 리뷰
+6. `develop` 브랜치 머지
+7. 작업 브랜치 삭제
+8. 이슈 종료
+```
 
 ### 1. 이슈 발행
 
@@ -172,20 +255,8 @@ git push origin --delete feat/#1/changeLogin
 - PR과 연결된 이슈가 있다면 함께 닫습니다.
 - 작업이 끝난 이슈는 바로 정리합니다.
 
-즉, 전체 작업 흐름은 아래와 같습니다.
 
-```markdown
-이슈 발행
-→ 브랜치 분기
-→ 작업 진행
-→ PR 발행
-→ 최소 1명 코드 리뷰
-→ develop 브랜치 머지
-→ 브랜치 삭제
-→ 이슈 닫기
-```
-
-## 6. 컨벤션
+## 컨벤션
 
 ### 커밋 메시지 형식
 
