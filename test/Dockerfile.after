@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY node-app/package*.json ./
+RUN npm install
+
+COPY node-app/. .
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD node -e "process.exit(0)"
+
+CMD ["node", "app.js"]
