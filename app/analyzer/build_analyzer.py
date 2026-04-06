@@ -169,7 +169,7 @@ def build_and_analyze(
     tag: str | None = None,
 ) -> BuildResult:
     dockerfile_path = Path(dockerfile_path)
-    dockerfile_content = dockerfile_path.read_text()
+    dockerfile_content = dockerfile_path.read_text(encoding="utf-8")
 
     #FROM 라인에서 base image 추출
     base_images = []
@@ -234,7 +234,7 @@ def build_and_analyze(
 
         if result.returncode == 0:
             # iid 파일에서 이미지 ID 읽기
-            with open(iid_file, "r") as f:
+            with open(iid_file, "r", encoding="utf-8") as f:
                 image_id = f.read().strip()
 
             issues = _analyze_security(image_id)

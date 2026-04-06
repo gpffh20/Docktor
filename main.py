@@ -18,7 +18,7 @@ def _load(path: Path) -> str:
     if not path.exists():
         typer.echo(f"파일을 찾을 수 없습니다: {path}", err=True)
         raise typer.Exit(2)
-    return path.read_text()
+    return path.read_text(encoding="utf-8")
 
 
 
