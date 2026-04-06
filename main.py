@@ -38,7 +38,7 @@ def analyze_cmd(
     build_result = None
     security_result = None
     if build:
-        build_result = build_and_analyze(content, tag=tag)
+        build_result = build_and_analyze(file, tag=tag)
     if trivy:
         if build_result is not None and build_result.success:
             image_ref = build_result.tag or build_result.image_id
@@ -79,8 +79,8 @@ def compare(
     security_result_b = None
     security_result_a = None
     if build:
-        build_result_b = build_and_analyze(content_b)
-        build_result_a = build_and_analyze(content_a)
+        build_result_b = build_and_analyze(before)
+        build_result_a = build_and_analyze(after)
 
     if trivy:
         if build:

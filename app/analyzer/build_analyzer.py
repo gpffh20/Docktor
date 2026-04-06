@@ -4,10 +4,10 @@ import os
 import time
 import re
 import json
-import shutil
 import tarfile
 from datetime import datetime
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.analyzer.static_analyzer import parse_dockerfile
 
@@ -164,7 +164,13 @@ def validate_tag(tag: str) -> bool:
     return bool(re.match(pattern, tag))
 
 
-def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildResult:
+def build_and_analyze(
+    dockerfile_path: str | Path,
+    tag: str | None = None,
+) -> BuildResult:
+    dockerfile_path = Path(dockerfile_path)
+    dockerfile_content = dockerfile_path.read_text()
+
     #FROM 라인에서 base image 추출
     base_images = []
     stage = 1
@@ -190,23 +196,33 @@ def build_and_analyze(dockerfile_content: str, tag: str | None = None) -> BuildR
         )
 
     with tempfile.TemporaryDirectory() as tmpdir:  # 임시폴더 생성 (with 블록 끝나면 자동 삭제)
-        dockerfile_path = os.path.join(tmpdir, "Dockerfile")  # 임시폴더 안에 Dockerfile 경로 지정
-        with open(dockerfile_path, "w") as f:
-            f.write(dockerfile_content)  # Dockerfile 내용 저장
-
-            # build context 파일들 복사 (requirements.txt 등)-임시용
-        for file in os.listdir("test"):
-            src = os.path.join("test", file)
-            if os.path.isfile(src) and not file.startswith("Dockerfile"):
-                shutil.copy(src, tmpdir)
-
         iid_file = os.path.join(tmpdir, "iid.txt")  # 이미지 ID 저장할 파일 경로
 
         start = time.time()  # 빌드 시작 시간 기록
 
-        command = ["docker", "build", "--progress=rawjson", "--iidfile", iid_file, tmpdir] # 기본 빌드
+        command = [
+            "docker",
+            "build",
+            "--progress=rawjson",
+            "--iidfile",
+            iid_file,
+            "-f",
+            str(dockerfile_path),
+            str(dockerfile_path.parent),
+        ] # 기본 빌드
         if tag:
-            command = ["docker", "build", "--progress=rawjson", "--iidfile", iid_file, "-t", tag, tmpdir] #태그 있는 빌드
+            command = [
+                "docker",
+                "build",
+                "--progress=rawjson",
+                "--iidfile",
+                iid_file,
+                "-t",
+                tag,
+                "-f",
+                str(dockerfile_path),
+                str(dockerfile_path.parent),
+            ] #태그 있는 빌드
 
         result = subprocess.run(
             command,
