@@ -4,9 +4,7 @@ import os
 import time
 import re
 import json
-import shutil
 import tarfile
-import glob
 from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
@@ -166,105 +164,13 @@ def validate_tag(tag: str) -> bool:
     return bool(re.match(pattern, tag))
 
 
-def _context_target(cleaned_source: str) -> str | None:
-    source = cleaned_source.strip()
-    if not source or source in {".", "./", "*"}:
-        return None
-
-    normalized = source.rstrip("/")
-    if normalized.endswith("/.") or normalized.endswith("/./"):
-        normalized = normalized.rsplit("/.", 1)[0]
-    elif source.endswith("/."):
-        normalized = source[:-2]
-
-    if "*" in normalized or "?" in normalized:
-        parent = os.path.dirname(normalized)
-        return parent or None
-    return normalized or None
-
-
-def _extract_context_targets(dockerfile_content: str) -> set[str]:
-    targets: set[str] = set()
-
-    for instruction in parse_dockerfile(dockerfile_content):
-        if instruction.name not in {"COPY", "ADD"}:
-            continue
-
-        normalized = (
-            instruction.value
-            .replace('"', "")
-            .replace("'", "")
-            .replace("[", "")
-            .replace("]", "")
-            .replace(",", " ")
-        )
-        parts = [part for part in normalized.split() if part]
-        if not parts:
-            continue
-        if any(part.lower().startswith("--from=") for part in parts):
-            continue
-
-        actual_parts = [part for part in parts if not part.startswith("--")]
-        if len(actual_parts) < 2:
-            continue
-
-        for source in actual_parts[:-1]:
-            target = _context_target(source)
-            if target is not None:
-                targets.add(target)
-
-    return targets
-
-
-def _copy_context_target(src_root: Path, rel_path: str, dest_root: str) -> None:
-    src_path = src_root / rel_path
-    if not src_path.exists():
-        return
-
-    dest_path = os.path.join(dest_root, rel_path)
-    basename = os.path.basename(rel_path)
-    if basename.startswith("Dockerfile"):
-        return
-
-    if src_path.is_dir():
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        shutil.copytree(
-            str(src_path),
-            dest_path,
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("Dockerfile*"),
-        )
-        return
-
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-    shutil.copy2(src_path, dest_path)
-
-
-def _prepare_build_context(dockerfile_content: str, src_root: Path, dest_root: str) -> None:
-    for file in os.listdir(src_root):
-        src = src_root / file
-        if src.is_file() and not file.startswith("Dockerfile"):
-            shutil.copy2(src, dest_root)
-
-    for target in sorted(_extract_context_targets(dockerfile_content)):
-        matches = glob.glob(str(src_root / target))
-        if matches:
-            rel_paths = [
-                os.path.relpath(match, str(src_root))
-                for match in matches
-            ]
-        else:
-            rel_paths = [target]
-
-        for rel_path in rel_paths:
-            _copy_context_target(src_root, rel_path, dest_root)
-
-
 def build_and_analyze(
-    dockerfile_content: str,
+    dockerfile_path: str | Path,
     tag: str | None = None,
-    context_root: str | Path = ".",
 ) -> BuildResult:
+    dockerfile_path = Path(dockerfile_path)
+    dockerfile_content = dockerfile_path.read_text()
+
     #FROM 라인에서 base image 추출
     base_images = []
     stage = 1
@@ -289,22 +195,34 @@ def build_and_analyze(
             error_message="유효하지 않은 태그입니다. 영문, 숫자, -, ., _ 만 사용 가능하고 128자 이하여야 합니다."
         )
 
-    src_root = Path(context_root)
-
     with tempfile.TemporaryDirectory() as tmpdir:  # 임시폴더 생성 (with 블록 끝나면 자동 삭제)
-        dockerfile_path = os.path.join(tmpdir, "Dockerfile")  # 임시폴더 안에 Dockerfile 경로 지정
-        with open(dockerfile_path, "w") as f:
-            f.write(dockerfile_content)  # Dockerfile 내용 저장
-
-        _prepare_build_context(dockerfile_content, src_root, tmpdir)
-
         iid_file = os.path.join(tmpdir, "iid.txt")  # 이미지 ID 저장할 파일 경로
 
         start = time.time()  # 빌드 시작 시간 기록
 
-        command = ["docker", "build", "--progress=rawjson", "--iidfile", iid_file, tmpdir] # 기본 빌드
+        command = [
+            "docker",
+            "build",
+            "--progress=rawjson",
+            "--iidfile",
+            iid_file,
+            "-f",
+            str(dockerfile_path),
+            str(dockerfile_path.parent),
+        ] # 기본 빌드
         if tag:
-            command = ["docker", "build", "--progress=rawjson", "--iidfile", iid_file, "-t", tag, tmpdir] #태그 있는 빌드
+            command = [
+                "docker",
+                "build",
+                "--progress=rawjson",
+                "--iidfile",
+                iid_file,
+                "-t",
+                tag,
+                "-f",
+                str(dockerfile_path),
+                str(dockerfile_path.parent),
+            ] #태그 있는 빌드
 
         result = subprocess.run(
             command,
