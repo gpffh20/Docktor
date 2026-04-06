@@ -5,9 +5,76 @@ Docktor는 Dockerfile 정적 분석과 실제 이미지 빌드 결과를 함께 
 
 ## 기술 스택
 
+- Python 3.12
+- Typer
+- Rich
+- Docker CLI
+- Trivy
 
 ## 프로젝트 실행 방법
 
+### 1. 공통 권장 사항
+
+- macOS와 Windows 모두 Python 3.12 사용을 권장합니다.
+- 저장소 루트에서 가상환경을 만든 뒤 활성화합니다.
+- 의존성은 가상환경 안에만 설치합니다.
+- `--build` 또는 `--trivy` 옵션을 쓸 경우 각 OS에 Docker와 Trivy가 별도로 설치되어 있어야 합니다.
+
+### 2. macOS
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e .
+python -m main analyze --file test/Dockerfile
+```
+
+설치 후에는 아래처럼 실행해도 됩니다.
+
+```bash
+docktor analyze --file test/Dockerfile
+```
+
+### 3. Windows
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e .
+python -m main analyze --file test/Dockerfile
+```
+
+설치 후에는 아래 방식 중 하나로 실행합니다.
+
+```powershell
+python -m main analyze --file test/Dockerfile
+docktor analyze --file test/Dockerfile
+docktor.bat analyze --file test/Dockerfile
+```
+
+### 4. 왜 Windows에서 `docktor`가 바로 안 될 수 있는가
+
+저장소의 [`docktor`](./docktor)는 shebang 기반 실행 파일이라 macOS/Linux에서는 자연스럽지만 Windows에서는 그대로 실행 파일로 인식되지 않을 수 있습니다.  
+Windows에서는 아래 둘 중 하나로 실행하는 것을 권장합니다.
+
+- `pip install -e .` 후 생성되는 `docktor` 엔트리포인트 사용
+- `python -m main ...` 또는 `docktor.bat ...` 사용
+
+### 5. 옵션별 요구 사항
+
+- `analyze --file ...`: Python 의존성만 맞으면 실행 가능
+- `--build`: Docker CLI 및 Docker Engine 필요
+- `--trivy`: Trivy 설치 필요
+
+### 6. 팀 공통 실행 규칙
+
+- 둘 다 같은 Python 메이저/마이너 버전을 사용합니다.
+- 둘 다 가상환경을 활성화한 상태에서 실행합니다.
+- 둘 다 `pip install -e .` 또는 `pip install -r requirements.txt` 중 하나로 의존성을 맞춥니다.
+- 가능하면 명령은 `python -m main ...` 형태로 통일합니다.
+- Git 줄바꿈 차이를 줄이기 위해 저장소의 `.gitattributes` 설정을 유지합니다.
 
 ## 프로젝트 구조
 
